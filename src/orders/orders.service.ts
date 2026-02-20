@@ -4,14 +4,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { ChangeOrderStatusDto, OrderPaginationDto } from './dto';
 import { firstValueFrom } from 'rxjs';
-import { PRODUCT_SERVICE } from 'src/config';
+import { NATS_SERVICES } from 'src/config';
 
 @Injectable()
 export class OrdersService {
 
   constructor(
     private prisma: PrismaService,
-    @Inject(PRODUCT_SERVICE) private readonly productService: ClientProxy
+    @Inject(NATS_SERVICES) private readonly client: ClientProxy
 
   ) { }
 
@@ -22,12 +22,12 @@ export class OrdersService {
     ];
 
     // Es un observable
-    // NO::: const validateProducts = await this.productService.send({ cmd: 'validate_products' }, { productIds });
+    // NO::: const validateProducts = await this.client.send({ cmd: 'validate_products' }, { productIds });
 
     try {
       // 1. Consumir microservicio
       const products = await firstValueFrom(
-        this.productService.send({ cmd: 'validate_products' }, productIds)
+        this.client.send({ cmd: 'validate_products' }, productIds)
       );
 
       // 2. Calculo de los valores
@@ -146,7 +146,7 @@ export class OrdersService {
     const productIds = order.OrderItem.map(orderItem => orderItem.productId);
 
     const products = await firstValueFrom(
-      this.productService.send({ cmd: 'validate_products' }, productIds)
+      this.client.send({ cmd: 'validate_products' }, productIds)
     );
 
     return {
