@@ -5,6 +5,8 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { ChangeOrderStatusDto, OrderPaginationDto } from './dto';
 import { firstValueFrom } from 'rxjs';
 import { NATS_SERVICES } from 'src/config';
+import { CreateOrder } from './interfaces/create-order.interface';
+import { PaidOrderDto } from './dto/paid-order.dto';
 
 @Injectable()
 export class OrdersService {
@@ -171,6 +173,52 @@ export class OrdersService {
       where: { id },
       data: { status: status }
     });
+
+
+  }
+
+  async createPaymentSession(order: CreateOrder) {
+
+    const paymentSession = await firstValueFrom(
+      this.client.send('create.payment.session', {
+        orderId: order.id,
+        currency: 'usd',
+        items: order.OrderItem.map(item => {
+          return {
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          }
+        })
+      })
+    );
+
+    return paymentSession;
+
+  }
+
+
+  async paidOrder(paidOrderDto: PaidOrderDto) {
+    const order = this.prisma.order.update({
+      where: {
+        id: paidOrderDto.orderId
+      },
+      data: {
+        status: 'PAID',
+        paid: true,
+        paidAt: new Date(),
+        stripeChargeId: paidOrderDto.stripePaymentId,
+
+        // Relacion
+        orderReceipts: {
+          create: {
+            receipUrl: paidOrderDto.receipUrl
+          }
+        }
+      }
+    });
+
+    return order;
 
 
   }
